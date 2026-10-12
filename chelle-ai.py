@@ -6,7 +6,7 @@ from goose.agent import AIModel, SystemMessage, TextMessagePart, UserMessage
 
 from token_matcher import MatchResult, TokenMatcher, load_weights, plot_distributions
 
-OPENAI_MODEL = AIModel.GPT_4 
+OPENAI_MODEL = AIModel.GPT_4O 
 ADVISOR_PATH = "advisor_answers.json"
 LABELS_PATH = "token_labels.json"
 
