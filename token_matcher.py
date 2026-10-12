@@ -1,16 +1,16 @@
-"""Weighted soft token matcher (BERTScore-style) on BGE embeddings.
+"""Weighted soft token matcher (BERTScore-style) on ModernBERT-based embeddings.
 
-Model: BAAI/bge-base-en-v1.5. Contextual token vectors
-are pooled to whole words, then each reference word is matched to its most similar
-candidate word by cosine similarity. Per-word weights (manual labels in [0, 1],
-0 = unrelated to the message's meaning, 1 = complete match/important) scale each
+Model: Alibaba-NLP/gte-modernbert-base (needs transformers>=4.48, 8192-token context). 
+Contextual token vectors are pooled to whole words, then each reference word is matched 
+to its most similar candidate word by cosine similarity. Per-word weights (manual labels 
+in [0, 1], 0 = unrelated to the message's meaning, 1 = complete match/important) scale each
 word's contribution; stop words / filler are dropped.
 
     recall    = sum_i w_i * max_j cos(r_i, c_j) / sum_i w_i     (advisor words covered)
     precision = sum_j w_j * max_i cos(r_i, c_j) / sum_j w_j     (model words supported)
     score     = F1(precision, recall)
 
-Requires: pip install torch transformers numpy matplotlib
+Requires: pip install torch "transformers>=4.48" numpy matplotlib
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import numpy as np
 import torch
 from transformers import AutoModel, AutoTokenizer
 
-MODEL_NAME = "BAAI/bge-base-en-v1.5"
+MODEL_NAME = "Alibaba-NLP/gte-modernbert-base"
 
 STOP_WORDS = frozenset(
     "a an the and or but if of to in on at by for with as is are was were be been being "
@@ -62,7 +62,7 @@ class TokenMatcher:
         ws = words(text)
         enc = self.tok(
             text, return_offsets_mapping=True, return_tensors="pt",
-            truncation=True, max_length=512,
+            truncation=True, max_length=8192,
         )
         offsets = enc.pop("offset_mapping")[0].tolist()
         hidden = self.model(**{k: v.to(self.device) for k, v in enc.items()}).last_hidden_state[0]
@@ -71,7 +71,7 @@ class TokenMatcher:
         kept, vecs = [], []
         for w, s, e in ws:
             idx = [i for i, (a, b) in enumerate(offsets) if b > a and a < e and b > s]
-            if idx:  # words past the 512-token truncation have no pieces and are skipped
+            if idx:  # words past the 8192-token truncation have no pieces and are skipped
                 kept.append(w)
                 vecs.append(hidden[idx].mean(0))
         v = np.stack(vecs) if vecs else np.zeros((0, hidden.shape[1]))
